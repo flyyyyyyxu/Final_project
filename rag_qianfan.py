@@ -3,6 +3,10 @@ import os
 from openai import OpenAI
 from typing import List
 from rag_retrieval import search
+from dotenv import load_dotenv
+
+# 加载 .env 文件
+load_dotenv()
 
 # 从 .env 读取 QIANFAN_API_KEY（或设置环境变量）
 API_KEY = os.getenv("QIANFAN_API_KEY")
