@@ -54,8 +54,8 @@ def generate_answer(
         filtered = []
         for r in retrieved:
             md = r.get("metadata", {}) or {}
-            src = str(md.get("source", "")).lower()
-            if city_l in src:
+            md_city = str(md.get("city", "")).lower()
+            if md_city and md_city == city_l:
                 filtered.append(r)
 
         if filtered:

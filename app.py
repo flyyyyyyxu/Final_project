@@ -21,6 +21,18 @@ load_dotenv()
 
 # ---------- 工具函数 ----------
 
+def parse_day_slots(day_text: str):
+    """
+    从某一天的文本中解析出 上午/下午/晚上 的安排
+    返回列表：[{time: '上午', text: 'xxx'}, ...]
+    """
+    slots = []
+    pattern = r"-\s*(上午|下午|晚上)[：:]\s*(.+)"
+    for m in re.finditer(pattern, day_text):
+        time = m.group(1)
+        text = m.group(2).strip()
+        slots.append({"time": time, "text": text})
+    return slots
 
 def extract_places(text: str):
     """
@@ -220,30 +232,34 @@ with tab1:
         st.markdown("### ✨ 定制旅行建议")
         st.write(answer)
 
-        # 按天解析 & 收藏
-        st.markdown("### ⭐ 按天收藏地点")
-        day_blocks = parse_days(answer)
-        if not day_blocks:
-            st.info("当前回答中没有检测到 Day 结构。")
-        else:
-            city = trip_meta["city"]
-            start_str = trip_meta["start_date"]
-            end_str = trip_meta["end_date"]
-            trip_id = create_or_get_trip(city, start_str, end_str)
+    # 按天解析 & 收藏（改版：按 上午/下午/晚上 收藏整条行程描述）
+    st.markdown("### ⭐ 按天收藏行程片段")
+    day_blocks = parse_days(answer)
+    if not day_blocks:
+        st.info("当前回答中没有检测到 Day 结构。")
+    else:
+        city = trip_meta["city"]
+        start_str = trip_meta["start_date"]
+        end_str = trip_meta["end_date"]
+        trip_id = create_or_get_trip(city, start_str, end_str)
 
-            for block in day_blocks:
-                day_label = block["day"]
-                day_text = block["text"]
-                places = extract_places(day_text)
+        for block in day_blocks:
+            day_label = block["day"]
+            day_text = block["text"]
 
-                if not places:
-                    continue
+            slots = parse_day_slots(day_text)
+            if not slots:
+                continue
 
-                st.markdown(f"#### {day_label}")
-                for p in places:
-                    if st.button(f"收藏：{p}", key=f"{day_label}_{p}"):
-                        add_item(trip_id, p, day_label, "")
-                        st.success(f"已收藏 {p} 到 {day_label}")
+            st.markdown(f"#### {day_label}")
+            for slot in slots:
+                time_label = slot["time"]
+                text = slot["text"]
+                short = text if len(text) <= 40 else text[:40] + "..."
+                if st.button(f"收藏：{time_label}｜{short}", key=f"{day_label}_{time_label}_{short}"):
+                    # name 存整段描述，day 存 Day1/2/3，time 存 上午/下午/晚上
+                    add_item(trip_id, text, day_label, time_label)
+                    st.success(f"已收藏 {day_label} {time_label}")
 
         with st.expander("查看检索到的游记片段（调试用）"):
             for i, r in enumerate(used_chunks):

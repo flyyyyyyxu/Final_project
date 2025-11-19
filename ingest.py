@@ -50,29 +50,72 @@ def load_all_csv():
 # -----------------------
 # Step 4: Chunk the CSV content
 # -----------------------
+def infer_city_from_path(csv_path: str) -> str:
+    # 示例：data/medium/paris_medium_posts.csv -> paris
+    base = os.path.basename(csv_path).lower()
+    for token in ["paris", "budapest", "rome", "london", "tokyo", "kyoto"]:
+        if token in base:
+            return token
+    return ""
+
+
 def build_chunks(csv_files):
     chunks = []
     metadata = []
 
-    for csv_path in tqdm(csv_files, desc="Chunking CSVs"):
+    for csv_path in csv_files:
         try:
             df = pd.read_csv(csv_path)
         except Exception as e:
             print(f"[ERROR] Cannot read {csv_path}: {e}")
             continue
 
-        # Automatically guess text column
-        text_col = df.columns[1]
+        cols = [c.lower() for c in df.columns]
+
+        # 猜字段名
+        title_col = None
+        url_col = None
+        text_col = None
+
+        for c in df.columns:
+            lc = c.lower()
+            if "title" == lc:
+                title_col = c
+            if "url" == lc:
+                url_col = c
+            # Medium: Content
+            if "content" == lc:
+                text_col = c
+            # Reddit: selftext
+            if "selftext" == lc:
+                text_col = c
+
+        # 再兜底：取第 2 列当正文
+        if text_col is None and len(df.columns) >= 2:
+            text_col = df.columns[1]
+
+        city = infer_city_from_path(csv_path)
 
         for i, row in df.iterrows():
-            text = str(row[text_col])
-            for c in chunk_text(text):
+            raw_text = str(row.get(text_col, ""))
+            if not raw_text.strip():
+                continue
+
+            title = str(row.get(title_col, "")) if title_col else ""
+            url = str(row.get(url_col, "")) if url_col else ""
+
+            for c in chunk_text(raw_text):
                 chunks.append(c)
-                metadata.append({
-                    "source": csv_path,
-                    "row": i,
-                    "content": c
-                })
+                metadata.append(
+                    {
+                        "source": csv_path,
+                        "row": int(i),
+                        "content": c,
+                        "title": title,
+                        "url": url,
+                        "city": city,
+                    }
+                )
 
     return chunks, metadata
 
