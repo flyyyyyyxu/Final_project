@@ -120,13 +120,19 @@ with tab1:
 
             with st.spinner("正在检索游记并生成建议…"):
                 answer, used_chunks = generate_answer(user_question, top_k=5, model="ernie-speed-8k")
+                # 保存结果到 session_state，避免重新运行时丢失
+                st.session_state["last_answer"] = answer
+                st.session_state["last_used_chunks"] = used_chunks
+                st.session_state["last_trip_id"] = (dest_city, start_str, end_str)
 
             st.markdown("### ✨ 定制旅行建议")
             st.write(answer)
 
             st.markdown("### ⭐ 可收藏的地点")
+            answer = st.session_state.get("last_answer", answer)
             places = extract_places(answer)
-            trip_id = f"{dest_city}_{start_str}"
+            city, start_str, end_str = st.session_state["last_trip_id"]
+            real_trip_id = create_or_get_trip(city, start_str, end_str)
 
             for p in places:
                 if st.button(f"收藏：{p}", key=f"save_{p}"):

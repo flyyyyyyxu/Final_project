@@ -38,30 +38,71 @@ def generate_answer(user_question: str, top_k: int = 5, model: str = DEFAULT_MOD
     # 2) Build context string
     context = build_context(retrieved)
 
-    # 3) Prompt template
+    # 3) Prompt template：重点改这里
     prompt = f"""
-你是一个专业的旅行规划助手。请基于下面的检索到的真实游记片段回答用户问题，给出务实、可执行的建议，并在回答末尾列出引用来源（编号与链接）。
-用户问题：{user_question}
+你是一个专业旅行规划顾问，请严格按照以下格式为用户生成旅行方案。
 
-检索到的内容如下（请务必仅基于这些内容回答）：
+【用户问题】
+{user_question}
+
+【检索到的真实游记片段】
 {context}
 
-请给出清晰的建议/行程/注意事项。如果检索信息不足，请说明哪些信息缺失，并给出合理的通用建议。
+---
+
+⚠️【回答格式要求——必须严格遵守】⚠️
+
+1. 开场：用 1～2 句话概述这趟旅行的风格与适合人群。
+   示例： “这是一趟适合第一次来巴黎、喜欢城市漫步与轻松节奏的三日行程。”
+
+2. 分日行程（必须为 Day 1 / Day 2 / Day 3）
+   Day 1:
+      - 上午：xxx
+      - 下午：xxx
+      - 晚上：xxx
+
+   Day 2:
+      - 上午：xxx
+      - 下午：xxx
+      - 晚上：xxx
+
+   Day 3:
+      - 上午：xxx
+      - 下午：xxx
+      - 晚上：xxx
+
+   要求：
+   - 每个景点尽量基于检索片段
+   - 若检索片段不足，可补充通用建议（需说明“补充”）
+
+3. 行程亮点总结（可选但推荐）
+   格式示例：
+   - 美食亮点：
+   - 拍照亮点：
+   - 小众体验亮点：
+
+4. 注意事项（至少 3 条）
+
+5. 参考来源（编号 + 标题 + 链接）
+   示例：
+   [1] 标题：https://xxx
+   [2] 标题：https://xxx
+
+请严格按以上格式输出，不要输出其他说明。
 """
 
     # 4) Call Qianfan (OpenAI-compatible)
     resp = client.chat.completions.create(
         model=model,
         messages=[
-            {"role": "system", "content": "你是资深旅行规划顾问，回答要务实、礼貌并明确列出来源。"},
+            {"role": "system", "content": "你是资深旅行规划顾问，回答要务实、礼貌、结构清晰，并且严格遵守用户提供的格式要求。"},
             {"role": "user", "content": prompt}
         ],
         temperature=temperature,
         max_tokens=800
     )
 
-    # 5) Extract text (兼容不同返回格式)
-    # 对于 OpenAI-compatible 返回，通常是 resp.choices[0].message.content 或 resp.choices[0].text
+    # 5) Extract text
     try:
         content = resp.choices[0].message["content"]
     except Exception:
